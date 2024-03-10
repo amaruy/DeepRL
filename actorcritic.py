@@ -1,101 +1,125 @@
-import gymnasium
+import gymnasium as gym
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.nn.utils import clip_grad_norm_
 from torch.distributions import Categorical
-from tqdm import tqdm
 import numpy as np
 import os
 from collections import namedtuple
 from time import time
+from torch.utils.tensorboard import SummaryWriter
 
-# Check for CUDA
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# Environment Wrapper to Handle Different Environments
-class EnvironmentWrapper:
-    def __init__(self, env_name, state_pad, action_pad):
-        self.env = gym.make(env_name)
-        self.state_pad = state_pad
-        self.action_pad = action_pad
-        
-    def reset(self):
-        state, _ = self.env.reset()
-        return np.append(state, np.zeros(self.state_pad - len(state)))
-    
-    def step(self, action):
-        state, reward, done, _, info = self.env.step(action)
-        state = np.append(state, np.zeros(self.state_pad - len(state)))
-        return state, reward, done, info
-
-    def render(self):
-        self.env.render()
-
-# Define the Policy (Actor) and Value (Critic) Networks
+######################################################################
+# 1. Define the Policy (Actor) and Value (Critic) Networks
 class PolicyNetwork(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size, hidden_sizes=[64, 128]):
         super(PolicyNetwork, self).__init__()
-        self.network = nn.Sequential(
-            nn.Linear(input_size, 12),
-            nn.ReLU(),
-            nn.Linear(12, output_size),
-            nn.Softmax(dim=-1)
-        )
+        layers = []
+        prev_size = input_size
+        for hidden_size in hidden_sizes:
+            layers.append(nn.Linear(prev_size, hidden_size))
+            layers.append(nn.ReLU())
+            prev_size = hidden_size
+        layers.append(nn.Linear(hidden_sizes[-1], output_size))
+        layers.append(nn.Softmax(dim=-1))
+        self.network = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.network(x)
 
 class ValueNetwork(nn.Module):
-    def __init__(self, input_size, hidden_size=32):
+    def __init__(self, input_size, output_size=1, hidden_sizes=[64, 128]):
         super(ValueNetwork, self).__init__()
-        self.network = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, 1)
-        )
+        layers = []
+        prev_size = input_size
+        for hidden_size in hidden_sizes:
+            layers.append(nn.Linear(prev_size, hidden_size))
+            layers.append(nn.ReLU())
+            prev_size = hidden_size
+        layers.append(nn.Linear(hidden_sizes[-1], output_size))
+        self.network = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.network(x)
 
+
+######################################################################
+#2. Reshape the enviroment wrapper to handle the action space
+class EnvironmentWrapper:
+    def __init__(self, env, target_state_size=6, target_action_size=3):
+        self.env = env
+        self.target_state_size = target_state_size
+        self.target_action_size = target_action_size
+        self.action_space = env.action_space.n if isinstance(env.action_space, gym.spaces.Discrete) else env.action_space.shape[0]
+
+    def reset(self):
+        state, _ = self.env.reset()
+        # Pad state to match target_state_size
+        padded_state = np.append(state, np.zeros(self.target_state_size - len(state)))
+        return padded_state
+
+    def step(self, action):
+        action = min(self.action_space-1, max(0, action))
+        
+        state, reward, done, _, info = self.env.step(action)
+        # Pad state to match target_state_size
+        padded_state = np.append(state, np.zeros(self.target_state_size - len(state)))
+        return padded_state, reward, done, info
+
+    def action_padding(self, action):
+        one_hot_action = np.zeros(self.target_action_size)
+        one_hot_action[action] = 1
+        return one_hot_action
+
+######################################################################
+# 3. Define the Agent
 Transition = namedtuple("Transition", ["state", "action", "reward", "next_state", "done"])
 
 class ActorCriticAgent:
-    def __init__(self, state_size, action_size, lr_actor=0.001, lr_critic=0.0005):
-        self.policy_network = PolicyNetwork(state_size, action_size).to(device)
-        self.value_network = ValueNetwork(state_size).to(device)
-        self.optimizer_actor = optim.Adam(self.policy_network.parameters(), lr=lr_actor)
-        self.optimizer_critic = optim.Adam(self.value_network.parameters(), lr=lr_critic)
+    def __init__(self, config):
+        self.device = torch.device(config['device'] if torch.cuda.is_available() else "cpu")
+        self.policy_network = PolicyNetwork(config['state_size'], config['action_size'], config['hidden_sizes']).to(self.device)
+        self.value_network = ValueNetwork(config['state_size'], output_size=1, hidden_sizes=config['hidden_sizes']).to(self.device)
+
+        self.optimizer_actor = optim.Adam(self.policy_network.parameters(), lr=config['lr_actor'])
+        self.optimizer_critic = optim.Adam(self.value_network.parameters(), lr=config['lr_critic'])
+        self.verbosity = config['verbosity']
+        self.env_name = config['env_name']
+        self.writer = SummaryWriter(f"runs/{self.env_name}")
+        self.gamma = config['gamma']
 
     def select_action(self, state):
-        state = torch.FloatTensor(state).unsqueeze(0).to(device)
+        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         probs = self.policy_network(state)
         m = Categorical(probs)
         action = m.sample()
         return action.item(), m.log_prob(action)
 
-    def update_policy(self, transitions, gamma=0.99):
+    def update_policy(self, transitions):
         loss_policy = 0
         loss_value = 0
 
         for transition in transitions:
             state, action, reward, next_state, done = transition
-
-            state = torch.FloatTensor(state).unsqueeze(0).to(device)
-            next_state = torch.FloatTensor(next_state).unsqueeze(0).to(device)
-            action = torch.tensor(action).view(1, -1).to(device)
-            reward = torch.tensor(reward).float().to(device)
-            done = torch.tensor(done).float().to(device)
+            state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+            next_state = torch.FloatTensor(next_state).unsqueeze(0).to(self.device)
+            action = torch.tensor([action]).to(self.device)
+            reward = torch.tensor([reward], dtype=torch.float).to(self.device)
+            done = torch.tensor([done], dtype=torch.float).to(self.device)
 
             # Compute value loss
             predicted_value = self.value_network(state)
             next_predicted_value = self.value_network(next_state)
-            expected_value = reward + gamma * next_predicted_value * (1 - done)
+            expected_value = reward + self.gamma * next_predicted_value * (1 - done)
             loss_value += nn.MSELoss()(predicted_value, expected_value.detach())
 
             # Compute policy loss
-            _, log_prob = self.select_action(state)
+            probs = self.policy_network(state)
+            m = Categorical(probs)
+            log_prob = m.log_prob(action)
             advantage = expected_value - predicted_value.detach()
-            loss_policy += -log_prob * advantage
+            loss_policy += (-log_prob * advantage).mean()
 
         # Backpropagate losses
         self.optimizer_actor.zero_grad()
@@ -111,21 +135,21 @@ class ActorCriticAgent:
     def save_models(self, path='models'):
         if not os.path.exists(path):
             os.makedirs(path)
-        torch.save(self.policy_network.state_dict(), os.path.join(path, 'policy_network.pth'))
-        torch.save(self.value_network.state_dict(), os.path.join(path, 'value_network.pth'))
+        torch.save(self.policy_network.state_dict(), os.path.join(path, f'{self.env_name}_policy_network.pth'))
+        torch.save(self.value_network.state_dict(), os.path.join(path, f'{self.env_name}_value_network.pth'))
 
     def load_models(self, path='models'):
-        self.policy_network.load_state_dict(torch.load(os.path.join(path, 'policy_network.pth'), map_location=device))
-        self.value_network.load_state_dict(torch.load(os.path.join(path, 'value_network.pth'), map_location=device))
+        self.policy_network.load_state_dict(torch.load(os.path.join(path, f'{self.env_name}_policy_network.pth'), map_location=self.device))
+        self.value_network.load_state_dict(torch.load(os.path.join(path, f'{self.env_name}_value_network.pth'), map_location=self.device))
 
-
-
-    def train(self, env_wrapper, max_episodes=1000, max_steps=500, reward_threshold=475.0):
-        results = {'Episode': [], 'Reward': [], "Average_100": [], 'Solved': -1, 'Duration': 0, 'Loss': [], 'LossV': []}
+    def train(self, env_wrapper, max_episodes=1000, max_steps=500, reward_threshold=475.0, update_frequency=500):
+        self.results = {'Episode': [], 'Reward': [], "Average_100": [], 'Solved': -1, 'Duration': 0, 'Loss': [], 'LossV': []}
+        results = self.results
         start_time = time()
         episode_rewards = []
+        total_steps = 0
 
-        for episode in tqdm(range(max_episodes)):
+        for episode in range(max_episodes):
             state = env_wrapper.reset()
             episode_reward = 0
             transitions = []
@@ -138,15 +162,20 @@ class ActorCriticAgent:
                 episode_reward += reward
                 state = next_state
 
+                # update policy
+                if len(transitions) > update_frequency or done:
+                    loss_policy, loss_value = self.update_policy(transitions)
+                    results['Loss'].append(loss_policy)
+                    results['LossV'].append(loss_value)
+                    transitions = []
+
                 if done:
                     break
 
-            loss_policy, loss_value = self.update_policy(transitions)
             episode_rewards.append(episode_reward)
+
             results['Episode'].append(episode)
             results['Reward'].append(episode_reward)
-            results['Loss'].append(loss_policy)
-            results['LossV'].append(loss_value)
 
             if len(episode_rewards) >= 100:
                 avg_reward = sum(episode_rewards[-100:]) / 100
@@ -158,10 +187,16 @@ class ActorCriticAgent:
             else:
                 results['Average_100'].append(sum(episode_rewards) / len(episode_rewards))
 
-            if episode % 10 == 0:
-                print(f"Episode {episode}, Reward: {episode_reward}, Avg Reward: {results['Average_100'][-1]}, Policy Loss: {loss_policy}, Value Loss: {loss_value}")
+            if episode % self.verbosity == 0:
+                print(f"Episode {episode}, Avg Reward: {results['Average_100'][-1]}, PLoss: {loss_policy}, VLoss: {loss_value}")
+
+            # Log to TensorBoard
+            self.writer.add_scalar("Reward", episode_reward, episode)
+            self.writer.add_scalar("Average_100", results['Average_100'][-1], episode)
+            self.writer.add_scalar("Loss_Policy", loss_policy, episode)
+            self.writer.add_scalar("Loss_Value", loss_value, episode)
 
         results['Duration'] = time() - start_time
+        self.writer.close()
 
         return results
-
