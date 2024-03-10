@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.nn.utils import clip_grad_norm_
-from torch.distributions import Categorical
+from torch.distributions import Categorical, Normal
 import numpy as np
 import os
 from collections import namedtuple
@@ -13,20 +13,33 @@ from torch.utils.tensorboard import SummaryWriter
 ######################################################################
 # 1. Define the Policy (Actor) and Value (Critic) Networks
 class PolicyNetwork(nn.Module):
-    def __init__(self, input_size, output_size, hidden_sizes=[64, 128]):
+    def __init__(self, input_size, output_size, hidden_sizes=[64, 128], discrete=True):
         super(PolicyNetwork, self).__init__()
+        self.discrete = discrete
         layers = []
         prev_size = input_size
         for hidden_size in hidden_sizes:
             layers.append(nn.Linear(prev_size, hidden_size))
             layers.append(nn.ReLU())
             prev_size = hidden_size
-        layers.append(nn.Linear(hidden_sizes[-1], output_size))
-        layers.append(nn.Softmax(dim=-1))
-        self.network = nn.Sequential(*layers)
 
+        layers.append(nn.Linear(hidden_sizes[-1], output_size))
+
+        self.network = nn.Sequential(*layers)
+        
+        if not discrete:
+            # For continuous actions, also define log_std but don't use it unless needed
+            self.log_std = nn.Parameter(torch.zeros(output_size))
+        
     def forward(self, x):
-        return self.network(x)
+        output = self.network(x)
+        if self.discrete:
+            # Use softmax for discrete action spaces
+            return nn.Softmax(dim=-1)(output)
+        else:
+            # For continuous action spaces, output mean and log standard deviation
+            return output, self.log_std
+
 
 class ValueNetwork(nn.Module):
     def __init__(self, input_size, output_size=1, hidden_sizes=[64, 128]):
@@ -86,7 +99,7 @@ class ActorCriticAgent:
         self.optimizer_critic = optim.Adam(self.value_network.parameters(), lr=config['lr_critic'])
         self.verbosity = config['verbosity']
         self.env_name = config['env_name']
-        self.writer = SummaryWriter(f"runs/{self.env_name}")
+        self.writer = SummaryWriter(f"runs/{config['experiment']}")
         self.gamma = config['gamma']
 
     def select_action(self, state):
@@ -95,6 +108,7 @@ class ActorCriticAgent:
         m = Categorical(probs)
         action = m.sample()
         return action.item(), m.log_prob(action)
+
 
     def update_policy(self, transitions):
         loss_policy = 0
@@ -114,7 +128,7 @@ class ActorCriticAgent:
             expected_value = reward + self.gamma * next_predicted_value * (1 - done)
             loss_value += nn.MSELoss()(predicted_value, expected_value.detach())
 
-            # Compute policy loss
+
             probs = self.policy_network(state)
             m = Categorical(probs)
             log_prob = m.log_prob(action)
@@ -138,9 +152,11 @@ class ActorCriticAgent:
         torch.save(self.policy_network.state_dict(), os.path.join(path, f'{self.env_name}_policy_network.pth'))
         torch.save(self.value_network.state_dict(), os.path.join(path, f'{self.env_name}_value_network.pth'))
 
-    def load_models(self, path='models'):
-        self.policy_network.load_state_dict(torch.load(os.path.join(path, f'{self.env_name}_policy_network.pth'), map_location=self.device))
-        self.value_network.load_state_dict(torch.load(os.path.join(path, f'{self.env_name}_value_network.pth'), map_location=self.device))
+    def load_models(self, path='models', env_name='None'):
+        if env_name == 'None':
+            env_name = self.env_name
+        self.policy_network.load_state_dict(torch.load(os.path.join(path, f'{env_name}_policy_network.pth'), map_location=self.device))
+        self.value_network.load_state_dict(torch.load(os.path.join(path, f'{env_name}_value_network.pth'), map_location=self.device))
 
     def train(self, env_wrapper, max_episodes=1000, max_steps=500, reward_threshold=475.0, update_frequency=500):
         self.results = {'Episode': [], 'Reward': [], "Average_100": [], 'Solved': -1, 'Duration': 0, 'Loss': [], 'LossV': []}
@@ -200,3 +216,55 @@ class ActorCriticAgent:
         self.writer.close()
 
         return results
+
+
+class ContinuousActorCriticAgent(ActorCriticAgent):
+    def __init__(self, config):
+        super().__init__(config)
+        # Ensure the policy network is suitable for continuous action spaces
+        self.policy_network = PolicyNetwork(config['state_size'], config['action_size'], config['hidden_sizes'], discrete=False).to(self.device)
+        
+    def select_action(self, state):
+        # Adjust for continuous action space
+        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        action_mean, action_std = self.policy_network(state)
+        dist = Normal(action_mean, action_std.exp())
+        action = dist.sample()
+        log_prob = dist.log_prob(action).sum(-1)
+        return action.cpu().detach().numpy(), log_prob
+
+    def update_policy(self, transitions):
+        loss_policy = 0
+        loss_value = 0
+
+        for transition in transitions:
+            state, action, reward, next_state, done = transition
+            state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+            next_state = torch.FloatTensor(next_state).unsqueeze(0).to(self.device)
+            action = torch.FloatTensor(action).unsqueeze(0).to(self.device)
+            reward = torch.FloatTensor([reward]).to(self.device)
+            done = torch.FloatTensor([done]).to(self.device)
+
+            # Compute value loss as before
+            predicted_value = self.value_network(state)
+            next_predicted_value = self.value_network(next_state)
+            expected_value = reward + self.gamma * next_predicted_value * (1 - done)
+            loss_value += nn.MSELoss()(predicted_value.squeeze(), expected_value.detach().squeeze())
+
+            # Adjust policy loss computation for continuous action space
+            action_mean, action_std = self.policy_network(state)
+            dist = Normal(action_mean, action_std.exp())
+            log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+            advantage = expected_value - predicted_value.detach()
+            loss_policy += (-log_prob * advantage).mean()
+
+        # Perform backpropagation and optimization as before
+        self.optimizer_actor.zero_grad()
+        loss_policy.backward()
+        self.optimizer_actor.step()
+
+        self.optimizer_critic.zero_grad()
+        loss_value.backward()
+        self.optimizer_critic.step()
+
+        return loss_policy.item(), loss_value.item()
