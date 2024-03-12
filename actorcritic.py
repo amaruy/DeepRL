@@ -13,8 +13,9 @@ from torch.utils.tensorboard import SummaryWriter
 ######################################################################
 # 1. Define the Policy (Actor) and Value (Critic) Networks
 class Network(nn.Module):
-    def __init__(self, input_size, output_size, hidden_sizes=[64, 128], is_policy=True):
+    def __init__(self, input_size, output_size, hidden_sizes=[64, 64], is_policy=True):
         super(Network, self).__init__()
+        self.hidden_sizes = hidden_sizes
         layers = [nn.Linear(input_size, hidden_sizes[0]), nn.ReLU()]
         for i in range(len(hidden_sizes)-1):
             layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i+1]))
@@ -35,7 +36,7 @@ class Network(nn.Module):
             for param in self.network[:-1].parameters():
                 param.requires_grad = False
         
-        self.network[-1] = nn.Linear(next(reversed(self.network[:-1])).out_features, output_size)
+        self.network[-1] = nn.Linear(self.hidden_sizes[-1], output_size)
         nn.init.normal_(self.network[-1].weight, mean=0., std=0.1)
         nn.init.constant_(self.network[-1].bias, 0)
         if self.is_policy:
