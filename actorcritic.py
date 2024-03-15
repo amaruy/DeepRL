@@ -46,7 +46,7 @@ class Network(nn.Module):
 ######################################################################
 #2. Reshape the environment wrapper to handle the action space
 class EnvironmentWrapper:
-    def __init__(self, env, target_state_size=6, target_action_size=5):
+    def __init__(self, env, target_state_size=6, target_action_size=3):
         self.env = env
         self.target_state_size = target_state_size
         self.target_action_size = target_action_size
@@ -89,10 +89,13 @@ class ActorCriticAgent:
 
 
     def select_action(self, state):
-        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-        probs = self.policy_network(state)
-        m = Categorical(probs)
-        action = m.sample()
+        # without gradients --  test
+        with torch.no_grad():
+            state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+            probs = self.policy_network(state)
+            m = Categorical(probs)
+            action = m.sample()
+
         return action.item(), m.log_prob(action)
 
 
@@ -114,7 +117,7 @@ class ActorCriticAgent:
             expected_value = reward + self.gamma * next_predicted_value * (1 - done)
             loss_value += nn.MSELoss()(predicted_value, expected_value.detach())
 
-
+            # compute policy loss
             probs = self.policy_network(state)
             m = Categorical(probs)
             log_prob = m.log_prob(action)
@@ -180,7 +183,7 @@ class ActorCriticAgent:
                     loss_policy, loss_value = self.update_policy(transitions)
                     results['Loss'].append(loss_policy)
                     results['LossV'].append(loss_value)
-                    transitions = []
+                    transitions = [] # should we reset the transitions list here?
 
                 if done:
                     break

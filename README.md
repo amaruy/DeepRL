@@ -1,3 +1,15 @@
+## **TODO**
+1. fix MCC baseline
+2. fix cartpole2mcc
+3. run acrobot2cartpole until convergence
+4. test progressive with multiple adapter architectures acromcc2cartpole
+5. create and run cartpole+acrobot2mcc notebook
+6. extract tensorboard results for all experiments
+7. report
+8. cleanup code
+
+
+
 # Deep Reinforcement Learning for Classic Control Problems
 
 Welcome to our project repository, where we explore the fascinating world of Deep Reinforcement Learning (DRL) applied to a set of classic control problems. Our journey takes us through the realms of CartPole, Acrobot, and MountainCarContinuous environments, demonstrating the power and versatility of DRL strategies in navigating these challenges.
