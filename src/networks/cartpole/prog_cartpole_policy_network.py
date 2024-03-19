@@ -7,7 +7,7 @@ import time
 # from logger import Logger
 import json
 import os
-import src.config as const
+import src.config as config
 
 
 class ProgCartpolePolicyNetwork:
@@ -63,7 +63,7 @@ class ProgCartpolePolicyNetwork:
         self.b3 = tf.compat.v1.get_variable("b3", [self.action_size], initializer=tf.zeros_initializer())
 
     def restore_acrobat_policy_weights(self):
-        with open(const.acrobot_policy_weights, 'r') as f:
+        with open(config.acrobot_policy_weights, 'r') as f:
             weights = json.load(f)
         self.W1_k1 = tf.compat.v1.get_variable("W1_k1", initializer=tf.constant(weights["W1"]), trainable=False)
         self.b1_k1 = tf.compat.v1.get_variable("b1_k1", initializer=tf.constant(weights["b1"]), trainable=False)
@@ -71,7 +71,7 @@ class ProgCartpolePolicyNetwork:
         self.b2_k1 = tf.compat.v1.get_variable("b2_k1", initializer=tf.constant(weights["b2"]), trainable=False)
 
     def restore_mcc_policy_weights(self):
-        with open(const.mcc_policy_weights, 'r') as f:
+        with open(config.mcc_policy_weights, 'r') as f:
             weights = json.load(f)
         self.W1_k2 = tf.compat.v1.get_variable("W1_k2", initializer=tf.constant(weights["W1"]), trainable=False)
         self.b1_k2 = tf.compat.v1.get_variable("b1_k2", initializer=tf.constant(weights["b1"]), trainable=False)

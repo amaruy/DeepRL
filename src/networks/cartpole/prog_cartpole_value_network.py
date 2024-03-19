@@ -7,7 +7,7 @@ import time
 # from logger import Logger
 import json
 import os
-import src.config as const
+import src.config as config
 
 
 class ProgCartpoleValueNetwork:
@@ -52,7 +52,7 @@ class ProgCartpoleValueNetwork:
         self.b3 = tf.compat.v1.get_variable("b3", [1], initializer=tf.zeros_initializer())
 
     def restore_mcc_value_weights(self):
-        with open(const.mcc_value_weights, 'r') as f:
+        with open(config.mcc_value_weights, 'r') as f:
             weights = json.load(f)
         self.W1_k2 = tf.compat.v1.get_variable("W1_k2", initializer=tf.constant(weights["W1"]), trainable=False)
         self.b1_k2 = tf.compat.v1.get_variable("b1_k2", initializer=tf.constant(weights["b1"]), trainable=False)
@@ -62,7 +62,7 @@ class ProgCartpoleValueNetwork:
         self.b3_k2 = tf.compat.v1.get_variable("b3_k2", initializer=tf.constant(weights["b3"]), trainable=False)
 
     def restore_acrobat_value_weights(self):
-        with open(const.acrobot_value_weights, 'r') as f:
+        with open(config.acrobot_value_weights, 'r') as f:
             weights = json.load(f)
         self.W1_k1 = tf.compat.v1.get_variable("W1_k1", initializer=tf.constant(weights["W1"]), trainable=False)
         self.b1_k1 = tf.compat.v1.get_variable("b1_k1", initializer=tf.constant(weights["b1"]), trainable=False)
