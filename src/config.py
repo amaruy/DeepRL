@@ -71,3 +71,9 @@ mcc_avg_reward_thresh = 85
 mcc_file_name = f"{datetime_formatted}_mcc.pickle"
 mcc_run_results_path = os.path.join(RUN_RESULTS_PATH, "actor_critic/mcc", mcc_file_name)
 
+
+# -- transfer learning configs --
+# cartpole to acrobot transfer learning config
+prog_cartpole_file_name = f"{datetime_formatted}_prog_cartpole.pickle"
+prog_cartpole_run_results_path = os.path.join(RUN_RESULTS_PATH, "transfer_learning/cartpole_to_acrobot", prog_cartpole_file_name)
+
