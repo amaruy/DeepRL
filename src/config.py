@@ -60,7 +60,7 @@ acrobot_avg_reward_thresh = -85
 acrobot_file_name = f"{datetime_formatted}_acrobot.pickle"
 acrobot_run_results_path = os.path.join(RUN_RESULTS_PATH, "actor_critic/acrobot", acrobot_file_name)
 
-# mcc actor critic config
+# ----- mcc actor critic config -----
 mcc_env_name = 'MountainCarContinuous-v0'
 mcc_max_episodes = 1500
 mcc_max_steps = 1000
@@ -72,8 +72,12 @@ mcc_file_name = f"{datetime_formatted}_mcc.pickle"
 mcc_run_results_path = os.path.join(RUN_RESULTS_PATH, "actor_critic/mcc", mcc_file_name)
 
 
-# -- transfer learning configs --
+# ----- transfer learning configs -----
 # cartpole to acrobot transfer learning config
 prog_cartpole_file_name = f"{datetime_formatted}_prog_cartpole.pickle"
 prog_cartpole_run_results_path = os.path.join(RUN_RESULTS_PATH, "transfer_learning/cartpole_to_acrobot", prog_cartpole_file_name)
 
+
+# cartpole to mcc transfer learning config
+prog_cartpole_mcc_file_name = f"{datetime_formatted}_prog_cartpole_mcc.pickle"
+prog_cartpole_mcc_run_results_path = os.path.join(RUN_RESULTS_PATH, "transfer_learning/cartpole_to_mcc", prog_cartpole_mcc_file_name)

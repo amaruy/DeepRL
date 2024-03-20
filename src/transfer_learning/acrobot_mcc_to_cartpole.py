@@ -75,15 +75,11 @@ class CartpoleProgActorCritic:
         # Log hyperparameters and metrics
         self.metrics['train_score'] = score
         
-        
     def save_metrics(self):
         """Save the collected metrics to a json file."""
         with open(self.save_metrics_path, 'wb') as f:
             pickle.dump(self.metrics, f)
-    def save_metrics(self):
-        with open(self.save_metrics_path, 'wb') as f:
-            pickle.dump(self.metrics, f)
-    
+            
     def train(self, sess):
         global_step = 0
         solved = False
@@ -134,4 +130,3 @@ if __name__ == '__main__':
     with tf.compat.v1.Session() as sess:
         sess.run(tf.compat.v1.global_variables_initializer())
         agent.train(sess)
-
