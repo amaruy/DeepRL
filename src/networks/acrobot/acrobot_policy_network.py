@@ -12,39 +12,36 @@ class AcrobotPolicyNetwork:
         """
         Initializes the policy network with optional weight restoration.
 
-        :param env_action_size: Number of actions in the environment.
         :param learning_rate: Learning rate for the optimizer.
         :param restore_weights: Flag indicating whether to restore weights.
         :param name: Name of the TensorFlow variable scope.
         """
         self.state_size = config.state_size
         self.action_size = config.action_size
+        self.env_action_size = env_action_size
         self.learning_rate = learning_rate
         self.hidden_layer_size = config.acrobot_policy_hidden_layer_size
-
+        
         with tf.compat.v1.variable_scope(name):
             if restore_weights:
                 self.restore_weights()
             else:
                 self.init_weights()
                 
-            self.define_network_structure(env_action_size)
+            self.define_network_structure()
             self.define_loss_and_optimizer()
 
-    def define_network_structure(self, env_action_size):
+    def define_network_structure(self):
         """
         Defines the neural network structure for the policy model.
         """
         self.state = tf.compat.v1.placeholder(tf.float32, [None, self.state_size], name="state")
         self.action = tf.compat.v1.placeholder(tf.int32, [self.action_size], name="action")
         self.R_t = tf.compat.v1.placeholder(tf.float32, name="total_rewards")
-
         self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
         self.A1 = tf.nn.relu(self.Z1)
         self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
-
-        # Softmax probability distribution over actions
-        self.actions_distribution = tf.squeeze(tf.nn.softmax(self.output[:, : env_action_size]))
+        self.actions_distribution = tf.squeeze(tf.nn.softmax(self.output[:, : self.env_action_size]))
 
     def define_loss_and_optimizer(self):
         """
@@ -86,8 +83,13 @@ class AcrobotPolicyNetwork:
         """
         Restores the network's weights from a file.
         """
-        with open(config.acrobot_policy_weights, 'r') as f:
-            weights = json.load(f)
+        try:
+            with open(config.acrobot_policy_weights, 'r') as f:
+                weights = json.load(f)
+            # Rest of your code
+        except FileNotFoundError:
+            print(f"File {config.acrobot_policy_weights} not created yet.")
+
         self.W1 = tf.compat.v1.get_variable("W1", initializer=tf.constant(weights["W1"]))
         self.b1 = tf.compat.v1.get_variable("b1", initializer=tf.constant(weights["b1"]))
         self.W2 = tf.compat.v1.get_variable("W2", [self.hidden_layer_size, self.action_size], initializer=tf.initializers.GlorotUniform(seed=0))

@@ -17,11 +17,13 @@ class AcrobotValueNetwork:
         """
         self.state_size = config.state_size
         self.learning_rate = learning_rate
-        self.size_first_hidden_layer = config.mcc_hidden_1_size
-        self.size_second_hidden_layer = config.mcc_hidden_2_size
+        self.size_first_hidden_layer = config.acrobot_value_hidden_1_size
+        self.size_second_hidden_layer = config.acrobot_value_hidden_2_size
 
-        # Define the network structure within a TensorFlow variable scope.
         with tf.compat.v1.variable_scope(name):
+            self.state = tf.compat.v1.placeholder(tf.float32, [None, self.state_size], name="state")
+            self.R_t = tf.compat.v1.placeholder(tf.float32, name="total_rewards")
+            
             if restore_weights:
                 self.restore_weights()
             else:
@@ -34,11 +36,6 @@ class AcrobotValueNetwork:
         """
         Defines the structure of the neural network.
         """
-        # Placeholders for input states and target rewards.
-        self.state = tf.compat.v1.placeholder(tf.float32, [None, self.state_size], name="state")
-        self.R_t = tf.compat.v1.placeholder(tf.float32, name="total_rewards")
-
-        # Network layers.
         self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
         self.A1 = tf.nn.elu(self.Z1)
         self.Z2 = tf.add(tf.matmul(self.A1, self.W2), self.b2)

@@ -6,12 +6,13 @@ from src.networks.mcc.prog_mcc_policy_network import ProgMccPolicyNetwork
 from src.networks.mcc.prog_mcc_value_network import ProgMccValueNetwork
 from src import config
 import pickle
-
+import time
 class MccProgActorCritic:
     """
     Class to train a MountainCarContinuous-v0 agent using Proximal Policy Optimization (PPO) algorithm.
     """
-    def __init__(self, discount_factor, policy_learning_rate, value_learning_rate, render=False, policy_nn=None, value_nn=None):
+    def __init__(self, discount_factor, policy_learning_rate, value_learning_rate, render=False, policy_nn=None, value_nn=None,
+                 save_metrics_path=None):
 
         self.env = gym.make(config.mcc_env_name)
         self.state_size = config.state_size
@@ -34,7 +35,7 @@ class MccProgActorCritic:
             'average_rewards': [],
             'hyperparameters': {}
         }
-        self.save_metrics_path = config.prog_cartpole_mcc_run_results_path
+        self.save_metrics_path = save_metrics_path
 
     def pad_with_zeros(self, v, pad_size):
         v_t = np.hstack((np.squeeze(v), np.zeros(pad_size)))
@@ -90,6 +91,7 @@ class MccProgActorCritic:
             
     def train(self):
         with tf.compat.v1.Session() as sess:
+            start = time.time()
             sess.run(tf.compat.v1.global_variables_initializer())
             solved = False
             episode_rewards = []
@@ -134,7 +136,8 @@ class MccProgActorCritic:
                                 'value_learning_rate': self.value_learning_rate,
                                 'episodes_for_solution ': episode,
                                 'average_rewards': average_rewards,
-                                'Average success': np.round(np.sum(success_history[-100:])/len(success_history[-100:]), 2)}
+                                'train_time': time.time() - start,
+                                }
             self.log_train_score(train_score)
             self.save_metrics()
 
@@ -142,10 +145,11 @@ class MccProgActorCritic:
 if __name__ == '__main__':
     np.random.seed(23)
     tf.compat.v1.disable_eager_execution()
-
+    start = time.time()
     tf.compat.v1.reset_default_graph()
-    agent = MccProgActorCritic(0.99, 0.00001, 0.00055, render=True)
+    agent = MccProgActorCritic(0.99, 0.00001, 0.00055, render=True, save_metrics_path=config.prog_cartpole_mcc_run_results_path)
     with tf.compat.v1.Session() as sess:
         sess.run(tf.compat.v1.global_variables_initializer())
         agent.train()
-        
+    end = time.time()
+    print("Time taken for transfer learning acrobot, cartpole car to mountain car: ", end - start)

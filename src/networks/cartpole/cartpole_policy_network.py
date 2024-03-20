@@ -11,7 +11,6 @@ class CartpolePolicyNetwork:
         """
         Initializes the policy network with optional weight restoration.
 
-        :param env_action_size: Number of actions in the environment.
         :param learning_rate: Learning rate for the optimizer.
         :param restore_weights: Flag indicating whether to restore weights.
         :param name: Name of the TensorFlow variable scope.

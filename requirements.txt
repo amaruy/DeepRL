@@ -1,8 +1,6 @@
-# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 # run manually
-tensorflow
-gymnasium
-ipykernel
-numpy
-pandas
-tensorboard
-matplotlib
+# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 # run manually if torch needed
+tensorflow==2.16.1
+gymnasium==0.29.1
+ipykernel==6.29.3
+numpy==1.26.4
+tensorboard==2.16.2

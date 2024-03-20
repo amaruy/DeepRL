@@ -35,7 +35,6 @@ class CartpoleValueNetwork:
         """
         self.state = tf.compat.v1.placeholder(tf.float32, [None, self.state_size], name="state")
         self.R_t = tf.compat.v1.placeholder(tf.float32, name="total_rewards")
-
         self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
         self.A1 = tf.nn.elu(self.Z1)
         self.Z2 = tf.add(tf.matmul(self.A1, self.W2), self.b2)

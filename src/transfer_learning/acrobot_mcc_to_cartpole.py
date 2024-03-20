@@ -6,9 +6,12 @@ from src.networks.cartpole.prog_cartpole_policy_network import ProgCartpolePolic
 from src.networks.cartpole.prog_cartpole_value_network import ProgCartpoleValueNetwork
 from src import config
 import pickle
+import time
+
 class CartpoleProgActorCritic:
 
-    def __init__(self, discount_factor, policy_learning_rate, value_learning_rate, render=False, policy_nn=None, value_nn=None):
+    def __init__(self, discount_factor, policy_learning_rate, value_learning_rate, render=False, policy_nn=None, value_nn=None,
+                 save_metrics_path=None):
         self.env = gym.make(config.cartpole_env_name)
         self.state_size = config.state_size
         self.action_size = config.action_size
@@ -27,9 +30,9 @@ class CartpoleProgActorCritic:
             'value_losses': [],
             'episode_rewards': [],
             'average_rewards': [],
-            'hyperparameters': {}
+            'final_score': {}
         }
-        self.save_metrics_path = config.prog_cartpole_run_results_path
+        self.save_metrics_path = save_metrics_path
 
     def pad_with_zeros(self, v, pad_size):
         v_t = np.hstack((np.squeeze(v), np.zeros(pad_size)))
@@ -81,6 +84,7 @@ class CartpoleProgActorCritic:
             pickle.dump(self.metrics, f)
             
     def train(self, sess):
+        start = time.time()
         global_step = 0
         solved = False
         episode_rewards = np.zeros(self.max_episodes)
@@ -115,7 +119,9 @@ class CartpoleProgActorCritic:
                                     'policy_learning_rate': self.policy_learning_rate,
                                     'value_learning_rate': self.value_learning_rate, 
                                     'episodes_for_solution ': episode,
-                                    'average_rewards': average_rewards}
+                                    'average_rewards': average_rewards,
+                                    'train_time': time.time() - start,
+                                    }
         
         self.log_train_score(train_score)
         self.save_metrics()
@@ -124,9 +130,11 @@ class CartpoleProgActorCritic:
 if __name__ == '__main__':
     np.random.seed(23)
     tf.compat.v1.disable_eager_execution()
-
+    start = time.time()
     tf.compat.v1.reset_default_graph()
-    agent = CartpoleProgActorCritic(0.99, 0.0003, 0.00072, render=True)
+    agent = CartpoleProgActorCritic(0.99, 0.0003, 0.00072, render=True, save_metrics_path=config.prog_cartpole_run_results_path)
     with tf.compat.v1.Session() as sess:
         sess.run(tf.compat.v1.global_variables_initializer())
         agent.train(sess)
+    end = time.time()
+    print("Time taken for transfer learning acrobot, mountain car to cartpole: ", end - start)

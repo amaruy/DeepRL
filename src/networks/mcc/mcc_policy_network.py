@@ -3,7 +3,16 @@ import json
 from src import config
 
 class MccPolicyNetwork:
+    """
+    Implements a policy network for the MountainCar environment using TensorFlow 1.x.
+    """
     def __init__(self, env_action_size, learning_rate, name='policy_network'):
+        """
+        Initializes the policy network.
+
+        :param learning_rate: Learning rate for the optimizer.
+        :param name: Name of the TensorFlow variable scope.
+        """
         self.state_size = config.state_size
         self.action_size = config.action_size
         self.env_action_size = env_action_size
@@ -64,3 +73,4 @@ class MccPolicyNetwork:
         # Write the weights data to a JSON file
         with open(config.mcc_policy_weights, 'w') as f:
             json.dump(weights, f)
+            

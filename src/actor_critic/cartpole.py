@@ -9,7 +9,7 @@ import time
 
 class CartpoleActorCritic:
     
-    def __init__(self, discount_factor, policy_learning_rate, value_learning_rate, render=False, policy_nn=None, value_nn=None):
+    def __init__(self, discount_factor, policy_learning_rate, value_learning_rate, save_metrics_path=None, render=False, policy_nn=None, value_nn=None):
         self.env = gym.make(config.cartpole_env_name)
         self.state_size = config.state_size
         self.action_size = config.action_size
@@ -30,7 +30,7 @@ class CartpoleActorCritic:
             'average_rewards': [],
             'hyperparameters': {}
         }
-        self.save_metrics_path = config.cartpole_run_results_path
+        self.save_metrics_path = save_metrics_path
 
     def perform_action(self, sess, state):
         actions_distribution = sess.run(self.policy.actions_distribution, {self.policy.state: state})
@@ -65,8 +65,8 @@ class CartpoleActorCritic:
         self.metrics['episode_rewards'].append(cumulative_reward)
         self.metrics['average_rewards'].append(average_rewards)
             
-    def log_hyperparameters_and_final_score(self, hparams):
-        self.metrics['hyperparameters'] = hparams
+    def log_final_result(self, final_result):
+        self.metrics['result'] = final_result
 
     def save_metrics(self):
         with open(self.save_metrics_path, 'wb') as f:
@@ -77,6 +77,7 @@ class CartpoleActorCritic:
         return v_t.reshape((1, v_t.shape[0]))
 
     def train(self, sess, save_model=False):
+        start = time.time()
         episode_rewards = np.zeros(self.max_episodes)
         average_rewards = 0.0
         global_step = 0
@@ -120,8 +121,9 @@ class CartpoleActorCritic:
             'value_learning_rate': self.value_learning_rate,
             'episodes_for_solution': episode,
             'average_rewards': average_rewards,
+            'train_time': time.time() - start,
         }
-        self.log_hyperparameters_and_final_score(hparams_and_final_score)
+        self.log_final_result(hparams_and_final_score)
         self.save_metrics()
 
 if __name__ == '__main__':
@@ -129,9 +131,9 @@ if __name__ == '__main__':
     tf.compat.v1.disable_eager_execution()
     tf.compat.v1.reset_default_graph()
     start = time.time()
-    agent = CartpoleActorCritic(0.99, 0.0001, 0.0005, render=True)
+    agent = CartpoleActorCritic(0.99, 0.0001, 0.0005, config.cartpole_run_results_path, render=True)
     with tf.compat.v1.Session() as sess:
         sess.run(tf.compat.v1.global_variables_initializer())
         agent.train(sess, save_model=True)
     end = time.time()
-    print("Time taken: ", end - start)
+    print("Time taken for cartpole actor critic: ", end - start)

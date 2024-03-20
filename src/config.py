@@ -3,40 +3,55 @@ import datetime
 # Path to the weights folder
 WEIGHTS_PATH = '/home/etaylor/code_projects/DRL/drl_ass3/weights'
 
-# path to run results
+# Path to run results
 RUN_RESULTS_PATH = '/home/etaylor/code_projects/DRL/drl_ass3/results'
 
 # datetime formatted for results run
 datetime_formatted = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 
-# -- cartpole networks configs --
+# ----- cartpole networks configs -----
+
 # cartpole networks weights paths
 cartpole_policy_weights = os.path.join(WEIGHTS_PATH, 'cartpole_policy.json')
 cartpole_value_weights = os.path.join(WEIGHTS_PATH, 'cartpole_value.json')
+
 # cartpole hidden layers
 cartpole_value_hidden_1_size = 64
 cartpole_value_hidden_2_size = 64
 cartpole_policy_hidden_1_size = 12
 cartpole_policy_hidden_2_size = 12
 
-# acrobat networks weights paths
-acrobot_policy_weights = os.path.join(WEIGHTS_PATH, 'acrobat_policy.json')
-acrobot_value_weights = os.path.join(WEIGHTS_PATH, 'acrobat_value.json')
-# acrobat hidden layers
-acrobot_policy_hidden_layer_size = 12
+# progressive cartpole hidden layers
+cartpole_prog_value_hidden_size = 64
+cartpole_prog_policy_hidden_size = 12
 
-# -- mcc networks configs --
+# ----- acrobot networks configs -----
+
+
+# acrobot networks weights paths
+acrobot_policy_weights = os.path.join(WEIGHTS_PATH, 'acrobot_policy.json')
+acrobot_value_weights = os.path.join(WEIGHTS_PATH, 'acrobot_value.json')
+
+# acrobot hidden layers
+acrobot_policy_hidden_layer_size = 12
+acrobot_value_hidden_1_size = 64
+acrobot_value_hidden_2_size = 16
+
+# ----- mcc networks configs -----
+
 # mcc networks weights paths
 mcc_policy_weights = os.path.join(WEIGHTS_PATH, 'mcc_policy.json')
 mcc_value_weights = os.path.join(WEIGHTS_PATH, 'mcc_value.json')
+
 # mcc hidden layers
 mcc_value_hidden_1_size = 64
 mcc_value_hidden_2_size = 64
 mcc_policy_hidden_1_size = 12
 mcc_policy_hidden_2_size = 12
 
-mcc_hidden_1_size = 64
-mcc_hidden_2_size = 16
+# progressive mcc hidden layers
+mcc_prog_value_hidden_size = 32
+mcc_prog_policy_hidden_size = 12
 
 # all problems config
 state_size = 6
@@ -54,6 +69,7 @@ cartpole_run_results_path = os.path.join(RUN_RESULTS_PATH, "actor_critic/cartpol
 
 # acrobot actor critic config
 acrobot_env_name = 'Acrobot-v1'
+acrobot_env_action_size = 3
 acrobot_max_episodes = 750
 acrobot_max_steps = 501
 acrobot_avg_reward_thresh = -85
@@ -72,7 +88,18 @@ mcc_file_name = f"{datetime_formatted}_mcc.pickle"
 mcc_run_results_path = os.path.join(RUN_RESULTS_PATH, "actor_critic/mcc", mcc_file_name)
 
 
+# ----- fine tune configs -----
+
+# acrobot to cartpole config
+acrobot_to_cartpole_file_name = f"{datetime_formatted}_acrobot_to_cartpole.pickle"
+acrobot_to_cartpole_results_path = os.path.join(RUN_RESULTS_PATH, "fine_tune/acrobot_to_cartpole", acrobot_to_cartpole_file_name)
+
+# cartpole to mcc config
+cartpole_to_mcc_file_name = f"{datetime_formatted}_cartpole_to_mcc.pickle"
+cartpole_to_mcc_results_path = os.path.join(RUN_RESULTS_PATH, "fine_tune/cartpole_to_mcc", cartpole_to_mcc_file_name)
+
 # ----- transfer learning configs -----
+
 # cartpole to acrobot transfer learning config
 prog_cartpole_file_name = f"{datetime_formatted}_prog_cartpole.pickle"
 prog_cartpole_run_results_path = os.path.join(RUN_RESULTS_PATH, "transfer_learning/cartpole_to_acrobot", prog_cartpole_file_name)

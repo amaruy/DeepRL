@@ -5,10 +5,11 @@ import pickle
 from src.networks.mcc.mcc_policy_network import MccPolicyNetwork
 from src.networks.mcc.mcc_value_network import MccValueNetwork
 from src import config
+import time
 
 class MccActorCritic:
     
-    def __init__(self, discount_factor, policy_learning_rate, value_learning_rate, render=False, policy_nn=None, value_nn=None):
+    def __init__(self, discount_factor, policy_learning_rate, value_learning_rate, save_metrics_path=None, render=False, policy_nn=None, value_nn=None):
         self.env = gym.make(config.mcc_env_name)    
         self.state_size = config.state_size
         self.action_size = config.action_size
@@ -21,7 +22,7 @@ class MccActorCritic:
         self.discount_factor = discount_factor
         self.policy_learning_rate = policy_learning_rate
         self.value_learning_rate = value_learning_rate
-        self.policy = policy_nn or MccPolicyNetwork(self.env_action_size, self.policy_learning_rate)
+        self.policy = policy_nn or MccPolicyNetwork(config.mcc_env_action_size, self.policy_learning_rate)
         self.value_network = value_nn or MccValueNetwork(self.value_learning_rate)
         self.metrics = {
             'policy_losses': [],
@@ -30,7 +31,7 @@ class MccActorCritic:
             'average_rewards': [],
             'hyperparameters': {}
         }
-        self.save_metrics_path = config.mcc_run_results_path
+        self.save_metrics_path = save_metrics_path
 
     def pad_with_zeros(self, v, pad_size):
         v_t = np.hstack((np.squeeze(v), np.zeros(pad_size)))
@@ -67,18 +68,26 @@ class MccActorCritic:
 
         return p_loss, v_loss
 
-    def log_metrics(self, episode, p_loss, v_loss, episode_rewards, average_rewards, success_history):
+    def log_loss(self, p_loss, v_loss):
+        # Log policy network loss and value network loss
         self.metrics['policy_losses'].append(p_loss)
         self.metrics['value_losses'].append(v_loss)
-        self.metrics['episode_rewards'].append(episode_rewards[episode])
+            
+    def log_rewards(self, cumulative_reward, average_rewards):
+        # Log rewards per episode and mean episode score over 100 consecutive episodes
+        self.metrics['episode_rewards'].append(cumulative_reward)
         self.metrics['average_rewards'].append(average_rewards)
-        print("Episode {} Reward: {} Average over 100 episodes: {}, Average success: {}".format(episode, np.round(episode_rewards[episode], 2), np.round(average_rewards, 2), np.round(np.sum(success_history[-100:])/len(success_history[-100:]), 2)))
-
+            
+    def log_final_result(self, result):
+        # Log hyperparameters and metrics
+        self.metrics['result'] = result
+        
     def save_metrics(self):
         with open(self.save_metrics_path, 'wb') as f:
             pickle.dump(self.metrics, f)
 
     def train(self, sess, save_model=False):
+        start = time.time()
         episode_rewards = []
         success_history = []
         average_rewards = 0.0
@@ -95,13 +104,15 @@ class MccActorCritic:
                 action, next_state, reward, done = self.perform_action(sess, state)
                 cumulative_reward += reward
                 p_loss, v_loss = self.update_models(sess, state, action, reward, next_state, done)
-
+                self.log_loss(p_loss, v_loss)
+                
                 if done or step == self.max_steps - 1:
                     episode_rewards.append(cumulative_reward)
                     average_rewards = np.mean(episode_rewards[-100:])
                     success_history.append(1 if cumulative_reward > 0 else 0)
-                    self.log_metrics(episode, p_loss, v_loss, episode_rewards, average_rewards, success_history)
-                    
+                    self.log_rewards(cumulative_reward, average_rewards)
+                    print("Episode {} Reward: {} Average over 100 episodes: {}".format(episode, np.round(episode_rewards[episode], 2), np.round(average_rewards, 2)))
+
                     if average_rewards > config.mcc_avg_reward_thresh:
                         print(f'Solved at episode: {episode}')
                         solved = True
@@ -119,14 +130,26 @@ class MccActorCritic:
             if solved:
                 break
             
+        final_result = {
+            'discount_factor': self.discount_factor,
+            'policy_learning_rate': self.policy_learning_rate,
+            'value_learning_rate': self.value_learning_rate,
+            'episodes_for_solution': episode,
+            'average_rewards': average_rewards,
+            'train_time': time.time() - start
+        }
+
+        self.log_final_result(final_result) 
         self.save_metrics()
 
 if __name__ == '__main__':
     np.random.seed(23)
     tf.compat.v1.disable_eager_execution()
     tf.compat.v1.reset_default_graph()
-
-    agent = MccActorCritic(0.99, 0.00001, 0.00055, render=True)
+    start = time.time()
+    agent = MccActorCritic(0.99, 0.00001, 0.00055, config.mcc_run_results_path, render=True)
     with tf.compat.v1.Session() as sess:
         sess.run(tf.compat.v1.global_variables_initializer())
         agent.train(sess, save_model=True)
+    end = time.time()
+    print("Time taken for mountain car actor critic: ", end - start)

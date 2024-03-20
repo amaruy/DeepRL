@@ -1,35 +1,30 @@
 import gymnasium as gym
 import numpy as np
 import tensorflow as tf
-import collections
-from datetime import datetime
-import time
-from tensorflow.summary import create_file_writer
-from tensorboard.plugins.hparams import api as hp
-import json
-import os
 from src.networks.acrobot.acrobot_policy_network import AcrobotPolicyNetwork
 from src.networks.acrobot.acrobot_value_network import AcrobotValueNetwork
 from src import config
 import pickle
+import time
 
 class AcrobotActorCritic:
     
-    def __init__(self, discount_factor, policy_learning_rate, value_learning_rate, render=False, policy_nn=None, value_nn=None):
+    def __init__(self, discount_factor, policy_learning_rate, value_learning_rate, save_metrics_path=None, render=False, policy_nn=None, value_nn=None):
         np.random.seed(1)
         tf.compat.v1.disable_eager_execution()
-         
         self.env = gym.make(config.acrobot_env_name)
         self.state_size = config.state_size
         self.action_size = config.action_size
+        self.env_action_size = config.acrobot_env_action_size
         self.max_episodes = config.acrobot_max_episodes
         self.max_steps = config.acrobot_max_steps
         self.render = render
         self.discount_factor = discount_factor
         self.policy_learning_rate = policy_learning_rate
         self.value_learning_rate = value_learning_rate
-        self.policy = policy_nn or AcrobotPolicyNetwork(self.action_size, self.policy_learning_rate)
+        self.policy = policy_nn or AcrobotPolicyNetwork(self.env_action_size, self.policy_learning_rate)
         self.value_network = value_nn or AcrobotValueNetwork(self.value_learning_rate)
+        
         # Initialize containers for metrics
         self.metrics = {
             'policy_losses': [],
@@ -38,11 +33,11 @@ class AcrobotActorCritic:
             'average_rewards': [],
             'hyperparameters': {}
         }
-        self.save_metrics_path = config.acrobot_run_results_path
+        self.save_metrics_path = save_metrics_path
 
     def perform_action(self, sess, state):
         actions_distribution = sess.run(self.policy.actions_distribution, {self.policy.state: state})
-        action = np.random.choice(np.arange(self.action_size), p=actions_distribution)
+        action = np.random.choice(np.arange(self.env_action_size), p=actions_distribution)
         next_state, reward, done, _, _ = self.env.step(action)
         next_state = next_state.reshape((1, self.state_size))
 
@@ -58,42 +53,51 @@ class AcrobotActorCritic:
         next_value = sess.run(self.value_network.output, {self.value_network.state: next_state})
         td_target = reward + (1 - done) * self.discount_factor * next_value
         td_error = td_target - current_value
+
         # Update value network
         feed_dict = {self.value_network.state: state, self.value_network.R_t: td_target}
         _, v_loss = sess.run([self.value_network.optimizer, self.value_network.loss], feed_dict)
+        
         # Update policy network
         feed_dict = {self.policy.state: state, self.policy.R_t: td_error, self.policy.action: action}
-        _, loss = sess.run([self.policy.optimizer, self.policy.loss], feed_dict)
-        return loss, v_loss
+        _, p_loss = sess.run([self.policy.optimizer, self.policy.loss], feed_dict)
+        
+        return p_loss, v_loss
+    
     
     def log_loss(self, p_loss, v_loss):
+        # Log policy network loss and value network loss
         self.metrics['policy_losses'].append(p_loss)
         self.metrics['value_losses'].append(v_loss)
+            
             
     def log_rewards(self, cumulative_reward, average_rewards):
         # Log rewards per episode and mean episode score over 100 consecutive episodes
         self.metrics['episode_rewards'].append(cumulative_reward)
         self.metrics['average_rewards'].append(average_rewards)
             
-    def log_hyperparameters_and_final_score(self, hparams):
+            
+    def log_final_result(self, result):
         # Log hyperparameters and metrics
-        self.metrics['hyperparameters'] = hparams
+        self.metrics['result'] = result
         
         
     def save_metrics(self):
+        # Save the collected metrics to a json file
         """Save the collected metrics to a json file."""
         with open(self.save_metrics_path, 'wb') as f:
             pickle.dump(self.metrics, f)
 
 
     def train(self, sess, save_model=False):
+        start = time.time()
         episode_rewards = []
         average_rewards = 0.0
         global_step = 0
         solved = False
 
         for episode in range(self.max_episodes):
-            state = self.env.reset()[0]
+            state, _ = self.env.reset()
             state = state.reshape((1, state.shape[0]))
             cumulative_reward = 0
 
@@ -125,15 +129,16 @@ class AcrobotActorCritic:
             if solved:
                 break
 
-        hparams_and_final_score = {
+        final_result = {
             'discount_factor': self.discount_factor,
             'policy_learning_rate': self.policy_learning_rate,
             'value_learning_rate': self.value_learning_rate,
             'episodes_for_solution': episode,
             'average_rewards': average_rewards,
+            'train_time': time.time() - start,
         }
 
-        self.log_hyperparameters_and_final_score(hparams_and_final_score)
+        self.log_final_result(final_result)
         self.save_metrics()
 
 
@@ -141,8 +146,10 @@ if __name__ == '__main__':
     np.random.seed(23)
     tf.compat.v1.disable_eager_execution()
     tf.compat.v1.reset_default_graph()
-
-    agent = AcrobotActorCritic(0.99, 0.001, 0.001, render=True)
+    start = time.time()
+    agent = AcrobotActorCritic(0.99, 0.001, 0.001, config.acrobot_run_results_path, render=True)
     with tf.compat.v1.Session() as sess:
         sess.run(tf.compat.v1.global_variables_initializer())
         agent.train(sess, save_model=True)
+    end = time.time()
+    print("Time taken for acrobot actor critic: ", end - start)
