@@ -23,25 +23,17 @@ Our approach is twofold: first, we tailor an Actor-Critic model to learn efficie
 Begin by cloning this repository to your local machine. Our codebase is built using Python 3.8+, PyTorch, and OpenAI Gym. Ensure these prerequisites are met by installing the necessary packages:
 
 ```
-git clone https://github.com/your-repo/deep-rl-classic-control.git
-cd deep-rl-classic-control
+git clone git@github.com:AmaruCrunch/DeepRL.git
 pip install -r requirements.txt
+run `experiments.ipynb` to run each agent.
 ```
-
-To start training a model on a specific environment, run:
-
-```
-python train.py --env CartPole-v1
-```
-
-Replace `CartPole-v1` with `Acrobot-v1` or `MountainCarContinuous-v0` as desired. The training script includes options for customizing the learning rate, number of episodes, and other parameters, which can be accessed via `--help`.
 
 ## Project Structure
 
-- `models/`: Contains the neural network architectures for the policy and value functions.
-- `agents/`: Implementation of the Actor-Critic and Enhanced Actor-Critic agents.
-- `utils/`: Utility functions and classes for environment wrapping, data handling, and more.
-- `train.py`: The main training script for launching experiments.
+- `actor_critic/`: contains the code for each actor critic agent.
+- `fine_tune/`: Implements the code  for fine-tuning.
+- `transfer_learning/`: Implements the agents of the transfer learning task.
+- `networks`: Contains the neural network architectures for the policy and value functions.
 - `requirements.txt`: Lists all the necessary Python packages.
 
 ## Results and Analysis
@@ -52,10 +44,4 @@ We meticulously logged all training sessions using TensorBoard, allowing us to t
 
 While our models have achieved notable successes, continuous action spaces remain a challenging frontier. Future work will explore advanced algorithms such as TD3 and PPO, as well as experimenting with different exploration strategies and reward shaping techniques.
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ---
-
-Embark on this DRL adventure with us, and let's push the boundaries of what's possible in classic control problems together!
