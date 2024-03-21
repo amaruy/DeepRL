@@ -6,6 +6,7 @@ from src.networks.acrobot.acrobot_value_network import AcrobotValueNetwork
 from src import config
 import pickle
 import time
+import os
 
 class AcrobotActorCritic:
     
@@ -24,7 +25,7 @@ class AcrobotActorCritic:
         self.value_learning_rate = value_learning_rate
         self.policy = policy_nn or AcrobotPolicyNetwork(self.env_action_size, self.policy_learning_rate)
         self.value_network = value_nn or AcrobotValueNetwork(self.value_learning_rate)
-        
+        self.log_path = f'{config.acrobot_log_dir}_{time.strftime("%Y-%m-%d_%H-%M-%S")}'
         # Initialize containers for metrics
         self.metrics = {
             'policy_losses': [],
@@ -75,6 +76,7 @@ class AcrobotActorCritic:
         # Log rewards per episode and mean episode score over 100 consecutive episodes
         self.metrics['episode_rewards'].append(cumulative_reward)
         self.metrics['average_rewards'].append(average_rewards)
+
             
             
     def log_final_result(self, result):
@@ -90,16 +92,24 @@ class AcrobotActorCritic:
 
 
     def train(self, sess, save_model=False):
+        # log to tensorboard
+        self.writer = tf.summary.create_file_writer(self.log_path)
+        print('Logging to tensorboard')
+        print('logs at: ' + self.log_path)
         start = time.time()
         episode_rewards = []
         average_rewards = 0.0
         global_step = 0
         solved = False
 
+
         for episode in range(self.max_episodes):
             state, _ = self.env.reset()
             state = state.reshape((1, state.shape[0]))
             cumulative_reward = 0
+            agg_value_loss = 0
+            agg_policy_loss = 0
+
 
             for step in range(self.max_steps):
                 action, next_state, reward, done = self.perform_action(sess, state)
@@ -109,6 +119,9 @@ class AcrobotActorCritic:
 
                 # Log policy network loss and value network loss
                 self.log_loss(p_loss, v_loss)
+                agg_value_loss += v_loss
+                agg_policy_loss += p_loss
+
                     
                 if done or step == self.max_steps - 1:
                     episode_rewards.append(cumulative_reward)
@@ -116,6 +129,14 @@ class AcrobotActorCritic:
 
                     print(f"Episode {episode} Reward: {episode_rewards[episode]} Average over 100 episodes: {average_rewards}")
                     self.log_rewards(cumulative_reward, average_rewards)
+                    avg_policy_loss = agg_policy_loss / (step + 1)
+                    avg_value_loss = agg_value_loss / (step + 1)
+                    with self.writer.as_default():
+                        tf.summary.scalar('Policy Loss', avg_policy_loss, step=episode)
+                        tf.summary.scalar('Value Loss', avg_value_loss, step=episode)
+                        tf.summary.scalar('Average Reward', average_rewards, step=episode)
+                        self.writer.flush()
+
                     # Check if solved
                     if average_rewards > config.acrobot_avg_reward_thresh and average_rewards != 0:
                         print('Solved at episode: ' + str(episode))
@@ -137,8 +158,10 @@ class AcrobotActorCritic:
             'average_rewards': average_rewards,
             'train_time': time.time() - start,
         }
+        
 
         self.log_final_result(final_result)
+        self.writer.close()
         self.save_metrics()
 
 

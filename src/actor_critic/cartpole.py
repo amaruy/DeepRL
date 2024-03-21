@@ -6,6 +6,7 @@ from src.networks.cartpole.cartpole_policy_network import CartpolePolicyNetwork
 from src.networks.cartpole.cartpole_value_network import CartpoleValueNetwork
 from src import config
 import time
+import os
 
 class CartpoleActorCritic:
     
@@ -31,6 +32,8 @@ class CartpoleActorCritic:
             'hyperparameters': {}
         }
         self.save_metrics_path = save_metrics_path
+        self.log_path = f'{config.acrobot_log_dir}_{time.strftime("%Y-%m-%d_%H-%M-%S")}'
+
 
     def perform_action(self, sess, state):
         actions_distribution = sess.run(self.policy.actions_distribution, {self.policy.state: state})

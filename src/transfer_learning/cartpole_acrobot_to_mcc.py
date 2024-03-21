@@ -121,7 +121,7 @@ class MccProgActorCritic:
                         if average_rewards > 85 and episode > 100:
                             print(' Solved at episode: ' + str(episode))
                             solved = True
-                        if sum(success_history[-20:]) == 0 and episode > 10:
+                        if sum(success_history[-50:]) == 0 and episode > 10:
                             print(' Unlucky train: ' + str(episode))
                             solved = True
                         break

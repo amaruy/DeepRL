@@ -120,7 +120,7 @@ class MccActorCritic:
                             self.policy.save_weights(sess)
                             self.value_network.save_weights(sess)
 
-                    if sum(success_history[-20:]) == 0 and episode > 20:
+                    if sum(success_history[-50:]) == 0 and episode > 20:
                         print(' Unlucky train: ' + str(episode))
                         solved = True
                     break
