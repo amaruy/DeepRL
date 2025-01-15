@@ -1,18 +1,6 @@
-## **TODO**
-1. fix MCC baseline
-2. fix cartpole2mcc
-3. run acrobot2cartpole until convergence
-4. test progressive with multiple adapter architectures acromcc2cartpole
-5. create and run cartpole+acrobot2mcc notebook
-6. extract tensorboard results for all experiments
-7. report
-8. cleanup code
-
-
-
 # Deep Reinforcement Learning for Classic Control Problems
 
-Welcome to our project repository, where we explore the fascinating world of Deep Reinforcement Learning (DRL) applied to a set of classic control problems. Our journey takes us through the realms of CartPole, Acrobot, and MountainCarContinuous environments, demonstrating the power and versatility of DRL strategies in navigating these challenges.
+Exploration of Deep Reinforcement Learning (DRL) applied to a set of classic control problems. Playing with CartPole, Acrobot, and MountainCarContinuous environments, We demonstrate the power and versatility of DRL strategies in navigating these challenges.
 
 ## Project Overview
 
@@ -35,8 +23,8 @@ Our approach is twofold: first, we tailor an Actor-Critic model to learn efficie
 Begin by cloning this repository to your local machine. Our codebase is built using Python 3.8+, PyTorch, and OpenAI Gym. Ensure these prerequisites are met by installing the necessary packages:
 
 ```
-git clone https://github.com/your-repo/deep-rl-classic-control.git
-cd deep-rl-classic-control
+git clone https://github.com/amaruy/deeprl.git
+cd deeprl
 pip install -r requirements.txt
 ```
 
@@ -58,16 +46,12 @@ Replace `CartPole-v1` with `Acrobot-v1` or `MountainCarContinuous-v0` as desired
 
 ## Results and Analysis
 
-We meticulously logged all training sessions using TensorBoard, allowing us to track performance metrics, loss convergence, and other vital statistics. Our findings reveal the impact of transfer learning in reducing training time and improving overall model performance across tasks.
+We logged all training sessions using TensorBoard, allowing us to track performance metrics, loss convergence, and other vital statistics. Our findings reveal the impact of transfer learning in reducing training time and improving overall model performance across tasks.
 
 ## Challenges and Future Directions
 
-While our models have achieved notable successes, continuous action spaces remain a challenging frontier. Future work will explore advanced algorithms such as TD3 and PPO, as well as experimenting with different exploration strategies and reward shaping techniques.
+While our models have achieved notable successes, continuous action spaces remain a challenge. Future work will explore advanced algorithms such as TD3 and PPO, as well as experimenting with different exploration strategies and reward shaping techniques.
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-Embark on this DRL adventure with us, and let's push the boundaries of what's possible in classic control problems together!
