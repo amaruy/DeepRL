@@ -18,32 +18,6 @@ Our approach is twofold: first, we tailor an Actor-Critic model to learn efficie
 - **Transfer Learning Capabilities**: Our project showcases the implementation of simplified progressive neural networks, enabling the transfer of learned features from one task to efficiently bootstrap learning in another.
 - **Exploration Strategies**: To tackle the challenges of continuous action spaces, we've experimented with Ornstein-Uhlenbeck noise and other techniques to balance exploration and exploitation.
 
-## Installation and Usage
-
-Begin by cloning this repository to your local machine. Our codebase is built using Python 3.8+, PyTorch, and OpenAI Gym. Ensure these prerequisites are met by installing the necessary packages:
-
-```
-git clone https://github.com/amaruy/DeepRL.git
-cd deeprl
-pip install -r requirements.txt
-```
-
-To start training a model on a specific environment, run:
-
-```
-python train.py --env CartPole-v1
-```
-
-Replace `CartPole-v1` with `Acrobot-v1` or `MountainCarContinuous-v0` as desired. The training script includes options for customizing the learning rate, number of episodes, and other parameters, which can be accessed via `--help`.
-
-## Project Structure
-
-- `models/`: Contains the neural network architectures for the policy and value functions.
-- `agents/`: Implementation of the Actor-Critic and Enhanced Actor-Critic agents.
-- `utils/`: Utility functions and classes for environment wrapping, data handling, and more.
-- `train.py`: The main training script for launching experiments.
-- `requirements.txt`: Lists all the necessary Python packages.
-
 ## Results and Analysis
 
 We logged all training sessions using TensorBoard, allowing us to track performance metrics, loss convergence, and other vital statistics. Our findings reveal the impact of transfer learning in reducing training time and improving overall model performance across tasks.
