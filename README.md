@@ -23,7 +23,7 @@ Our approach is twofold: first, we tailor an Actor-Critic model to learn efficie
 Begin by cloning this repository to your local machine. Our codebase is built using Python 3.8+, PyTorch, and OpenAI Gym. Ensure these prerequisites are met by installing the necessary packages:
 
 ```
-git clone https://github.com/amaruy/deeprl.git
+git clone https://github.com/amaruy/DeepRL.git
 cd deeprl
 pip install -r requirements.txt
 ```
